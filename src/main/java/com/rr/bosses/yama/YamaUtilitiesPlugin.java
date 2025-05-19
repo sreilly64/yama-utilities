@@ -42,9 +42,6 @@ import java.util.regex.Pattern;
 public class YamaUtilitiesPlugin extends Plugin {
 
 	private boolean currentlyInsideYamasDomain;
-	private boolean currentlyFightingYama;
-	private int remainingTicksOfShadowGlyphProtection;
-	private int remainingTicksOfFireGlyphProtection;
 	private NPC voiceOfYama;
 	private PartyPluginDuoInfo partyPluginDuoInfo;
 	private DuoNameAutoFillWidget duoNameAutoFillWidget;
@@ -56,20 +53,12 @@ public class YamaUtilitiesPlugin extends Plugin {
 	public static final int JUDGE_OF_YAMA_NPC_ID = 14180;
 	public static final int VOID_FLARE_NPC_ID = 14179;
 	public static final int YAMAS_DOMAIN_REGION_ID = 6045;
-	public static final int OUTSIDE_CHASM_OF_FIRE_REGION_ID = 5689;
-	public static final int INSIDE_CHASM_OF_FIRE_REGION_ID = 5789;
 	public static final int VAR_CLIENT_INT_CAMERA_LOAD_ID = 384;
-	public static final int SHADOW_GLYPH_STEPPED_ON_OBJECT_ID = 56338;
-	public static final int FIRE_GLYPH_STEPPED_ON_OBJECT_ID = 56339;
-	public static final int GLYPH_PROTECTION_DURATION_IN_TICKS = 11;
 	public static final String YAMA = "Yama";
 	public static final String JUDGE_OF_YAMA = "Judge of Yama";
 	public static final String VOID_FLARE = "Void Flare";
 	public static final DecimalFormat DMG_FORMAT = new DecimalFormat("#,##0");
 	public static final DecimalFormat DECIMAL_FORMAT = new DecimalFormat("##0.0");
-	public static final Set<Integer> CHASM_OF_FIRE_REGION_IDS = Set.of(
-			OUTSIDE_CHASM_OF_FIRE_REGION_ID, INSIDE_CHASM_OF_FIRE_REGION_ID
-	);
 	public static final Set<String> ENEMY_NAMES = Set.of(
 			YAMA, JUDGE_OF_YAMA, VOID_FLARE
 	);
@@ -95,12 +84,6 @@ public class YamaUtilitiesPlugin extends Plugin {
 	@Inject
 	private PartyService partyService;
 
-	@Inject
-	private OverlayManager overlayManager;
-
-	@Inject
-	private HighlightPlayerOverlay highlightPlayerOverlay;
-
 	public YamaUtilitiesPlugin()
 	{
 		this.partyPluginDuoInfo = new PartyPluginDuoInfo(false);
@@ -112,13 +95,11 @@ public class YamaUtilitiesPlugin extends Plugin {
 		this.partyPluginDuoInfo.resetFields();
 		checkPlayerCurrentLocation();
 		wsClient.registerMessage(PartyPluginDuoInfo.class);
-		overlayManager.add(highlightPlayerOverlay);
 	}
 
 	@Override
 	protected void shutDown() throws Exception {
 		wsClient.unregisterMessage(PartyPluginDuoInfo.class);
-		overlayManager.remove(highlightPlayerOverlay);
 	}
 
 	@Provides
@@ -156,27 +137,6 @@ public class YamaUtilitiesPlugin extends Plugin {
 				this.partyPluginDuoInfo = event;
 			}
 		});
-	}
-
-	@Subscribe
-	public void onOverheadTextChanged(OverheadTextChanged event)
-	{
-		if (!this.currentlyInsideYamasDomain)
-		{
-			return;
-		}
-
-		String actorName = event.getActor().getName();
-		if (actorName == null)
-		{
-			return;
-		}
-
-		if (actorName.equalsIgnoreCase(YAMA) && PHASE_TRANSITION_OVERHEAD_TEXTS.contains(event.getOverheadText()))
-		{
-			this.currentlyFightingYama = false;
-			log.debug("currentlyFightingYama set to false due to Yama phase change dialog.");
-		}
 	}
 
 	@Subscribe
@@ -226,16 +186,6 @@ public class YamaUtilitiesPlugin extends Plugin {
 			String duoDisplayName = partyService.getMemberById(this.partyPluginDuoInfo.getMemberId()).getDisplayName();
 			this.voiceOfYama.setOverheadText(duoDisplayName + " has entered Yama's Domain");
 		}
-
-		if (this.remainingTicksOfFireGlyphProtection > 0)
-		{
-			this.remainingTicksOfFireGlyphProtection--;
-		}
-
-		if (this.remainingTicksOfShadowGlyphProtection > 0)
-		{
-			this.remainingTicksOfShadowGlyphProtection--;
-		}
 	}
 
 	@Subscribe
@@ -256,7 +206,6 @@ public class YamaUtilitiesPlugin extends Plugin {
 		{
 			log.debug("Yama spawned.");
 			initializeBossDamageMaps();
-			this.currentlyFightingYama = true;
 		}
 	}
 
@@ -280,16 +229,8 @@ public class YamaUtilitiesPlugin extends Plugin {
 			return;
 		}
 
-		if (npcId == JUDGE_OF_YAMA_NPC_ID)
-		{
-			this.currentlyFightingYama = true;
-			log.debug("currentlyFightingYama set to true due to Judge despawning");
-		}
-
 		if (npcId == YAMAS_NPC_ID)
 		{
-			this.currentlyFightingYama = false;
-
 			if (this.config.printDamageToChat())
 			{
 				List<String> messages = new ArrayList<>(Collections.emptyList());
@@ -357,33 +298,6 @@ public class YamaUtilitiesPlugin extends Plugin {
 				}
 			}
 		});
-	}
-
-	@Subscribe
-	public void onGameObjectSpawned(GameObjectSpawned gameObjectSpawned)
-	{
-		if (!this.currentlyInsideYamasDomain)
-		{
-			return;
-		}
-
-		if (!this.currentlyFightingYama)
-		{
-			return;
-		}
-
-		int objectId = gameObjectSpawned.getGameObject().getId();
-
-		if (objectId == SHADOW_GLYPH_STEPPED_ON_OBJECT_ID)
-		{
-			log.debug("Shadow glyph activated.");
-			this.remainingTicksOfShadowGlyphProtection = GLYPH_PROTECTION_DURATION_IN_TICKS;
-		}
-		if (objectId == FIRE_GLYPH_STEPPED_ON_OBJECT_ID)
-		{
-			log.debug("Fire glyph activated.");
-			this.remainingTicksOfFireGlyphProtection = GLYPH_PROTECTION_DURATION_IN_TICKS;
-		}
 	}
 
 	private String getDuoPartnerDisplayName()
