@@ -22,7 +22,6 @@ import net.runelite.client.party.events.UserJoin;
 import net.runelite.client.party.events.UserPart;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
-import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.Text;
 
 import javax.inject.Inject;
@@ -165,6 +164,12 @@ public class YamaUtilitiesPlugin extends Plugin {
 
 		if (npcName == null)
 		{
+			return;
+		}
+
+		if (hitsplat.getHitsplatType() == HitsplatID.HEAL)
+		{
+			//might add healing tracking here
 			return;
 		}
 
