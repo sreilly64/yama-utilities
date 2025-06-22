@@ -110,6 +110,11 @@ public class YamaUtilitiesPlugin extends Plugin {
 	@Subscribe(priority = 1) // run prior to plugins so that the member is joined by the time the plugins see it.
 	public void onUserJoin(final UserJoin message)
 	{
+		if (this.partyService.getLocalMember() == null)
+		{
+			log.debug("Local member joined new party, resetting duo partner info.");
+			this.partyPluginDuoInfo.resetFields();
+		}
 		sendPartyPluginDuoLocationMessage();
 	}
 
@@ -118,8 +123,9 @@ public class YamaUtilitiesPlugin extends Plugin {
 	{
 		if (message.getMemberId() == this.partyPluginDuoInfo.getMemberId())
 		{
-			log.debug("Resetting duo partner info.");
+			log.debug("Duo partner left the party, resetting duo partner info.");
 			this.partyPluginDuoInfo.resetFields();
+			setVoiceOfYamaOverheadText();
 		}
 	}
 
@@ -131,9 +137,15 @@ public class YamaUtilitiesPlugin extends Plugin {
 			log.debug("PartyPluginDuoLocation received with memberId = {} and in Yama's Domain = {}",
 					event.getMemberId(),
 					event.isCurrentlyInsideYamasDomain());
-			if (event.getMemberId() == this.partyPluginDuoInfo.getMemberId())
+			if (event.getMemberId() == this.partyService.getLocalMember().getMemberId())
+			{
+				return;
+			}
+			if (this.partyPluginDuoInfo.getMemberId() == 0L || event.getMemberId() == this.partyPluginDuoInfo.getMemberId())
 			{
 				this.partyPluginDuoInfo = event;
+				setVoiceOfYamaOverheadText();
+				log.debug("Updated duo partner location.");
 			}
 		});
 	}
@@ -182,23 +194,12 @@ public class YamaUtilitiesPlugin extends Plugin {
 	}
 
 	@Subscribe
-	public void onGameTick(GameTick gameTick)
-	{
-		if (this.voiceOfYama != null &&
-				partyService.isInParty() &&
-				this.partyPluginDuoInfo.isCurrentlyInsideYamasDomain())
-		{
-			String duoDisplayName = partyService.getMemberById(this.partyPluginDuoInfo.getMemberId()).getDisplayName();
-			this.voiceOfYama.setOverheadText(duoDisplayName + " has entered Yama's Domain");
-		}
-	}
-
-	@Subscribe
 	public void onNpcSpawned(NpcSpawned event)
 	{
 		if (event.getNpc().getId() == VOICE_OF_YAMA_NPC_ID)
 		{
 			this.voiceOfYama = event.getNpc();
+			setVoiceOfYamaOverheadText();
 			log.debug("Voice of Yama spawned.");
 		}
 
@@ -303,6 +304,31 @@ public class YamaUtilitiesPlugin extends Plugin {
 				}
 			}
 		});
+	}
+
+	private void setVoiceOfYamaOverheadText()
+	{
+		if (this.voiceOfYama == null)
+		{
+			return;
+		}
+
+		if (!partyService.isInParty() || !this.partyPluginDuoInfo.isCurrentlyInsideYamasDomain())
+		{
+			this.voiceOfYama.setOverheadCycle(1);
+			return;
+		}
+
+		this.voiceOfYama.setOverheadCycle(0);
+		String duoDisplayName = partyService.getMemberById(this.partyPluginDuoInfo.getMemberId()).getDisplayName();
+		if (duoDisplayName != null && !duoDisplayName.isEmpty() && !duoDisplayName.equalsIgnoreCase("<unknown>"))
+		{
+			this.voiceOfYama.setOverheadText(duoDisplayName + " has entered Yama's Domain");
+		}
+		else
+		{
+			this.voiceOfYama.setOverheadText("Duo partner has entered Yama's Domain");
+		}
 	}
 
 	private String getDuoPartnerDisplayName()
