@@ -1,6 +1,7 @@
 package com.rr.bosses.yama;
 
 import net.runelite.client.config.*;
+import net.runelite.client.plugins.camera.ControlFunction;
 
 import java.awt.*;
 
@@ -71,9 +72,9 @@ public interface YamaUtilitiesConfig extends Config
 			section = MISCELLANEOUS,
 			position = 0
 	)
-	default boolean hideScenery()
+	default SceneryFunction hideScenery()
 	{
-		return false;
+		return SceneryFunction.NONE;
 	}
 
 	@ConfigItem(
@@ -81,7 +82,7 @@ public interface YamaUtilitiesConfig extends Config
 			name = "Hide Fade-out Transitions",
 			description = "Hide the fade-out transitions between Yama's phases.",
 			section = MISCELLANEOUS,
-			position = 3
+			position = 1
 	)
 	default boolean hideFadeTransition() 
 	{
