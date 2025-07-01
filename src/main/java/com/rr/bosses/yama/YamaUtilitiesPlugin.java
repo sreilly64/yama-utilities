@@ -491,13 +491,10 @@ public class YamaUtilitiesPlugin extends Plugin {
 	public void onScriptPreFired(ScriptPreFired event) {
 		if (config.hideFadeTransition() && inRegion())
 		{
-			int id = event.getScriptId();
-			Object[] args = event.getScriptEvent().getArguments();
-			if (id == 948) {
-				args[4] = 255;
-				args[5] = 0;
-			} else if (id == 1514) {
-				args[3] = 25;
+			if (event.getScriptId() == 948)
+			{
+				event.getScriptEvent().getArguments()[4] = 255;
+				event.getScriptEvent().getArguments()[5] = 0;
 			}
 		}
 	}
