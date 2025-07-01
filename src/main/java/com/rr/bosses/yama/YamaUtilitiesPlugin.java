@@ -68,6 +68,9 @@ public class YamaUtilitiesPlugin extends Plugin {
 	private static final Set<Integer> GAME_OBJECT_IDS_WHITELIST = Set.of(
 			56247, 56249, 56264, 56358, 56265, 56335, 56336, 56337, 56338, 56339
 	);
+	private static final Set<Integer> WALL_OBJECTS_IDS_WHITELIST = Set.of(
+			50909, 50910, 42251, 50908
+	);
 	private static final Set<Integer> GROUND_OBJECT_IDS_WHITELIST = Set.of(
 			56358, 56246
 	);
@@ -108,7 +111,7 @@ public class YamaUtilitiesPlugin extends Plugin {
 		wsClient.unregisterMessage(PartyPluginDuoInfo.class);
 		clientThread.invoke(() ->
 		{
-			if (config.hideScenery() && client.getGameState() == GameState.LOGGED_IN)
+			if (config.hideScenery() != SceneryFunction.NONE && client.getGameState() == GameState.LOGGED_IN)
 			{
 				client.setGameState(GameState.LOADING);
 			}
@@ -425,23 +428,54 @@ public class YamaUtilitiesPlugin extends Plugin {
 		partyService.send(duoInfo);
 	}
 
+	private void hideWallObjects()
+	{
+		if (config.hideScenery() != SceneryFunction.NONE && inRegion())
+		{
+			Scene scene = client.getTopLevelWorldView().getScene();
+			for (int x = 0; x < Constants.SCENE_SIZE; x++)
+			{
+				for (int y = 0; y < Constants.SCENE_SIZE; y++)
+				{
+					Tile tile = scene.getTiles()[client.getTopLevelWorldView().getPlane()][x][y];
+					if (tile == null)
+					{
+						continue;
+					}
+					WallObject wallObject = tile.getWallObject();
+					if (wallObject != null && !GAME_OBJECT_IDS_WHITELIST.contains(wallObject.getId()) && config.hideScenery() == SceneryFunction.SCENERY_AND_WALLS)
+					{
+						scene.removeTile(tile);
+					}
+				}
+			}
+		}
+	}
+
 	@Subscribe
 	public void onGameObjectSpawned(GameObjectSpawned event) {
-		if (config.hideScenery() && inRegion())
-		{
+		if (config.hideScenery() != SceneryFunction.NONE && inRegion()) {
 			GameObject gameObject = event.getGameObject();
 			int id = gameObject.getId();
-			if (GAME_OBJECT_IDS_WHITELIST.contains(id))
-			{
+			if (GAME_OBJECT_IDS_WHITELIST.contains(id) || (WALL_OBJECTS_IDS_WHITELIST.contains(id) && config.hideScenery() == SceneryFunction.SCENERY)) {
 				return;
 			}
 			client.getTopLevelWorldView().getScene().removeGameObject(event.getGameObject());
+
+			if (config.hideScenery() == SceneryFunction.SCENERY_AND_WALLS)
+			{
+				if (GAME_OBJECT_IDS_WHITELIST.contains(id)) {
+					return;
+				}
+				client.getTopLevelWorldView().getScene().removeGameObject(event.getGameObject());
+				hideWallObjects();
+			}
 		}
 	}
 
 	@Subscribe
 	public void onGroundObjectSpawned(GroundObjectSpawned event) {
-		if (config.hideScenery() && inRegion())
+		if (config.hideScenery() != SceneryFunction.NONE && inRegion())
 		{
 			GroundObject groundObject = event.getGroundObject();
 			int id = groundObject.getId();
