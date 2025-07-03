@@ -1,7 +1,6 @@
 package com.rr.bosses.yama;
 
 import net.runelite.client.config.*;
-import net.runelite.client.plugins.camera.ControlFunction;
 
 import java.awt.*;
 
