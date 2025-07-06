@@ -15,6 +15,7 @@ import net.runelite.client.chat.ChatMessageManager;
 import net.runelite.client.chat.QueuedMessage;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.party.PartyMember;
 import net.runelite.client.party.PartyService;
 import net.runelite.client.party.WSClient;
@@ -64,6 +65,15 @@ public class YamaUtilitiesPlugin extends Plugin {
 	public static final Set<String> PHASE_TRANSITION_OVERHEAD_TEXTS = Set.of(
 			"Begone", "You bore me.", "Enough."
 	);
+	private static final Set<Integer> GAME_OBJECT_IDS_WHITELIST = Set.of(
+			56247, 56249, 56264, 56358, 56265, 56335, 56336, 56337, 56338, 56339
+	);
+	private static final Set<Integer> WALL_OBJECTS_IDS_WHITELIST = Set.of(
+			50909, 50910, 42251, 50908
+	);
+	private static final Set<Integer> GROUND_OBJECT_IDS_WHITELIST = Set.of(
+			56358, 56246
+	);
 
 	@Inject
 	private Client client;
@@ -99,12 +109,33 @@ public class YamaUtilitiesPlugin extends Plugin {
 	@Override
 	protected void shutDown() throws Exception {
 		wsClient.unregisterMessage(PartyPluginDuoInfo.class);
+		clientThread.invoke(() ->
+		{
+			if (config.hideScenery() != SceneryFunction.NONE && client.getGameState() == GameState.LOGGED_IN)
+			{
+				client.setGameState(GameState.LOADING);
+			}
+		});
 	}
 
 	@Provides
     YamaUtilitiesConfig provideConfig(ConfigManager configManager)
 	{
 		return configManager.getConfig(YamaUtilitiesConfig.class);
+	}
+
+	@Subscribe
+	public void onConfigChanged(ConfigChanged e) {
+		if ((e.getGroup().equals("yamautilities") && e.getKey().equals("hideScenery")) && inRegion())
+		{
+			clientThread.invokeLater(() ->
+			{
+				if (client.getGameState() == GameState.LOGGED_IN)
+				{
+					client.setGameState(GameState.LOADING);
+				}
+			});
+		}
 	}
 
 	@Subscribe(priority = 1) // run prior to plugins so that the member is joined by the time the plugins see it.
@@ -395,5 +426,82 @@ public class YamaUtilitiesPlugin extends Plugin {
 				.currentlyInsideYamasDomain(this.currentlyInsideYamasDomain)
 				.build();
 		partyService.send(duoInfo);
+	}
+
+	private void hideWallObjects()
+	{
+		if (config.hideScenery() != SceneryFunction.NONE && inRegion())
+		{
+			Scene scene = client.getTopLevelWorldView().getScene();
+			for (int x = 0; x < Constants.SCENE_SIZE; x++)
+			{
+				for (int y = 0; y < Constants.SCENE_SIZE; y++)
+				{
+					Tile tile = scene.getTiles()[client.getTopLevelWorldView().getPlane()][x][y];
+					if (tile == null)
+					{
+						continue;
+					}
+					WallObject wallObject = tile.getWallObject();
+					if (wallObject != null && !GAME_OBJECT_IDS_WHITELIST.contains(wallObject.getId()) && config.hideScenery() == SceneryFunction.SCENERY_AND_WALLS)
+					{
+						scene.removeTile(tile);
+					}
+				}
+			}
+		}
+	}
+
+	@Subscribe
+	public void onGameObjectSpawned(GameObjectSpawned event) {
+		if (config.hideScenery() != SceneryFunction.NONE && inRegion()) {
+			GameObject gameObject = event.getGameObject();
+			int id = gameObject.getId();
+			if (GAME_OBJECT_IDS_WHITELIST.contains(id) || (WALL_OBJECTS_IDS_WHITELIST.contains(id) && config.hideScenery() == SceneryFunction.SCENERY)) {
+				return;
+			}
+			client.getTopLevelWorldView().getScene().removeGameObject(event.getGameObject());
+
+			if (config.hideScenery() == SceneryFunction.SCENERY_AND_WALLS)
+			{
+				if (GAME_OBJECT_IDS_WHITELIST.contains(id)) {
+					return;
+				}
+				client.getTopLevelWorldView().getScene().removeGameObject(event.getGameObject());
+				hideWallObjects();
+			}
+		}
+	}
+
+	@Subscribe
+	public void onGroundObjectSpawned(GroundObjectSpawned event) {
+		if (config.hideScenery() != SceneryFunction.NONE && inRegion())
+		{
+			GroundObject groundObject = event.getGroundObject();
+			int id = groundObject.getId();
+			if (GROUND_OBJECT_IDS_WHITELIST.contains(id))
+			{
+				return;
+			}
+			event.getTile().setGroundObject(null);
+		}
+	}
+
+	@Subscribe
+	public void onScriptPreFired(ScriptPreFired event) {
+		if (config.hideFadeTransition() && inRegion())
+		{
+			if (event.getScriptId() == 948)
+			{
+				event.getScriptEvent().getArguments()[4] = 255;
+				event.getScriptEvent().getArguments()[5] = 0;
+			}
+		}
+	}
+
+	private boolean inRegion()
+	{
+		WorldView wv = client.getTopLevelWorldView();
+		return wv.isInstance() && Arrays.stream(wv.getMapRegions()).anyMatch(i -> i == YAMAS_DOMAIN_REGION_ID);
 	}
 }

@@ -57,4 +57,34 @@ public interface YamaUtilitiesConfig extends Config
 		return Keybind.NOT_SET;
 	}
 
+	@ConfigSection(
+			name = "Miscellaneous options",
+			description = "Miscellaneous options for Yama's Domain.",
+			position = 2
+	)
+	String MISCELLANEOUS = "miscellaneous";
+
+	@ConfigItem(
+			keyName = "hideScenery",
+			name = "Hide Scenery",
+			description = "Hides scenery for Yama's Domain.",
+			section = MISCELLANEOUS,
+			position = 0
+	)
+	default SceneryFunction hideScenery()
+	{
+		return SceneryFunction.NONE;
+	}
+
+	@ConfigItem(
+			keyName = "hideFadeTransition",
+			name = "Hide Fade-out Transitions",
+			description = "Hide the fade-out transitions between Yama's phases.",
+			section = MISCELLANEOUS,
+			position = 1
+	)
+	default boolean hideFadeTransition() 
+	{
+		return false;
+	}
 }
