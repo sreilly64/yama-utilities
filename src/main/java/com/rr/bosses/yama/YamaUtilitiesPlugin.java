@@ -54,6 +54,7 @@ public class YamaUtilitiesPlugin extends Plugin {
 	public static final int VOID_FLARE_NPC_ID = 14179;
 	public static final int YAMAS_DOMAIN_REGION_ID = 6045;
 	public static final int VAR_CLIENT_INT_CAMERA_LOAD_ID = 384;
+	public static final int YAMA_PHASE_TRANSITION_SCRIPT_ID = 948;
 	public static final String YAMA = "Yama";
 	public static final String JUDGE_OF_YAMA = "Judge of Yama";
 	public static final String VOID_FLARE = "Void Flare";
@@ -102,7 +103,7 @@ public class YamaUtilitiesPlugin extends Plugin {
 	protected void startUp() throws Exception {
 		initializeBossDamageMaps();
 		this.partyPluginDuoInfo.resetFields();
-		checkPlayerCurrentLocation();
+		updatePlayerCurrentLocation();
 		wsClient.registerMessage(PartyPluginDuoInfo.class);
 	}
 
@@ -125,8 +126,9 @@ public class YamaUtilitiesPlugin extends Plugin {
 	}
 
 	@Subscribe
-	public void onConfigChanged(ConfigChanged e) {
-		if ((e.getGroup().equals("yamautilities") && e.getKey().equals("hideScenery")) && inRegion())
+	public void onConfigChanged(ConfigChanged e)
+	{
+		if ((e.getGroup().equals("yamautilities") && e.getKey().equals("hideScenery")) && currentlyInsideYamasDomain)
 		{
 			clientThread.invokeLater(() ->
 			{
@@ -306,10 +308,11 @@ public class YamaUtilitiesPlugin extends Plugin {
 	{
 		if (event.getIndex() == VAR_CLIENT_INT_CAMERA_LOAD_ID)
 		{
-			checkPlayerCurrentLocation();
+			updatePlayerCurrentLocation();
 		}
 
-		if (event.getIndex() != VarClientInt.INPUT_TYPE) {
+		if (event.getIndex() != VarClientInt.INPUT_TYPE)
+		{
 			return;
 		}
 
@@ -395,15 +398,9 @@ public class YamaUtilitiesPlugin extends Plugin {
 		}
 	}
 
-	private void checkPlayerCurrentLocation()
+	private void updatePlayerCurrentLocation()
 	{
-		if (client.getLocalPlayer() == null)
-		{
-			return;
-		}
-
-		int currentRegionId = WorldPoint.fromLocalInstance(client, client.getLocalPlayer().getLocalLocation()).getRegionID();
-		boolean updatedCurrentlyInsideYamasDomain = YAMAS_DOMAIN_REGION_ID == currentRegionId;
+		boolean updatedCurrentlyInsideYamasDomain = inYamasDomain();
 
 		if (updatedCurrentlyInsideYamasDomain != this.currentlyInsideYamasDomain)
 		{
@@ -430,78 +427,101 @@ public class YamaUtilitiesPlugin extends Plugin {
 
 	private void hideWallObjects()
 	{
-		if (config.hideScenery() != SceneryFunction.NONE && inRegion())
+		if (config.hideScenery() == SceneryFunction.NONE)
 		{
-			Scene scene = client.getTopLevelWorldView().getScene();
-			for (int x = 0; x < Constants.SCENE_SIZE; x++)
+			return;
+		}
+
+		if (!inYamasDomain())
+		{
+			return;
+		}
+
+		Scene scene = client.getTopLevelWorldView().getScene();
+		for (int x = 0; x < Constants.SCENE_SIZE; x++)
+		{
+			for (int y = 0; y < Constants.SCENE_SIZE; y++)
 			{
-				for (int y = 0; y < Constants.SCENE_SIZE; y++)
+				Tile tile = scene.getTiles()[client.getTopLevelWorldView().getPlane()][x][y];
+				if (tile == null)
 				{
-					Tile tile = scene.getTiles()[client.getTopLevelWorldView().getPlane()][x][y];
-					if (tile == null)
-					{
-						continue;
-					}
-					WallObject wallObject = tile.getWallObject();
-					if (wallObject != null && !GAME_OBJECT_IDS_WHITELIST.contains(wallObject.getId()) && config.hideScenery() == SceneryFunction.SCENERY_AND_WALLS)
-					{
-						scene.removeTile(tile);
-					}
+					continue;
+				}
+				WallObject wallObject = tile.getWallObject();
+				if (wallObject != null && !GAME_OBJECT_IDS_WHITELIST.contains(wallObject.getId()) && config.hideScenery() == SceneryFunction.SCENERY_AND_WALLS)
+				{
+					scene.removeTile(tile);
 				}
 			}
 		}
 	}
 
 	@Subscribe
-	public void onGameObjectSpawned(GameObjectSpawned event) {
-		if (config.hideScenery() != SceneryFunction.NONE && inRegion()) {
-			GameObject gameObject = event.getGameObject();
-			int id = gameObject.getId();
-			if (GAME_OBJECT_IDS_WHITELIST.contains(id) || (WALL_OBJECTS_IDS_WHITELIST.contains(id) && config.hideScenery() == SceneryFunction.SCENERY)) {
-				return;
-			}
-			client.getTopLevelWorldView().getScene().removeGameObject(event.getGameObject());
-
-			if (config.hideScenery() == SceneryFunction.SCENERY_AND_WALLS)
-			{
-				if (GAME_OBJECT_IDS_WHITELIST.contains(id)) {
-					return;
-				}
-				client.getTopLevelWorldView().getScene().removeGameObject(event.getGameObject());
-				hideWallObjects();
-			}
-		}
-	}
-
-	@Subscribe
-	public void onGroundObjectSpawned(GroundObjectSpawned event) {
-		if (config.hideScenery() != SceneryFunction.NONE && inRegion())
-		{
-			GroundObject groundObject = event.getGroundObject();
-			int id = groundObject.getId();
-			if (GROUND_OBJECT_IDS_WHITELIST.contains(id))
-			{
-				return;
-			}
-			event.getTile().setGroundObject(null);
-		}
-	}
-
-	@Subscribe
-	public void onScriptPreFired(ScriptPreFired event) {
-		if (config.hideFadeTransition() && inRegion())
-		{
-			if (event.getScriptId() == 948)
-			{
-				event.getScriptEvent().getArguments()[4] = 255;
-				event.getScriptEvent().getArguments()[5] = 0;
-			}
-		}
-	}
-
-	private boolean inRegion()
+	public void onGameObjectSpawned(GameObjectSpawned event)
 	{
-		WorldView wv = client.getTopLevelWorldView();
-		return wv.isInstance() && Arrays.stream(wv.getMapRegions()).anyMatch(i -> i == YAMAS_DOMAIN_REGION_ID);
+		if (config.hideScenery() == SceneryFunction.NONE)
+		{
+			return;
+		}
+
+		if (!inYamasDomain())
+		{
+			return;
+		}
+
+		GameObject gameObject = event.getGameObject();
+		int id = gameObject.getId();
+		if (GAME_OBJECT_IDS_WHITELIST.contains(id) || (WALL_OBJECTS_IDS_WHITELIST.contains(id) && config.hideScenery() == SceneryFunction.SCENERY))
+		{
+			return;
+		}
+		client.getTopLevelWorldView().getScene().removeGameObject(gameObject);
+
+		if (config.hideScenery() == SceneryFunction.SCENERY_AND_WALLS)
+		{
+			hideWallObjects();
+		}
+	}
+
+	@Subscribe
+	public void onGroundObjectSpawned(GroundObjectSpawned event)
+	{
+		if (config.hideScenery() == SceneryFunction.NONE)
+		{
+			return;
+		}
+
+		if (!inYamasDomain())
+		{
+			return;
+		}
+
+		GroundObject groundObject = event.getGroundObject();
+		int id = groundObject.getId();
+		if (GROUND_OBJECT_IDS_WHITELIST.contains(id))
+		{
+			return;
+		}
+		event.getTile().setGroundObject(null);
+	}
+
+	@Subscribe
+	public void onScriptPreFired(ScriptPreFired event)
+	{
+		if (config.hideFadeTransition() && inYamasDomain() && event.getScriptId() == YAMA_PHASE_TRANSITION_SCRIPT_ID)
+		{
+			event.getScriptEvent().getArguments()[4] = 255;
+			event.getScriptEvent().getArguments()[5] = 0;
+		}
+	}
+
+	private boolean inYamasDomain()
+	{
+		if (client.getLocalPlayer() == null)
+		{
+			return false;
+		}
+		int currentRegionId = WorldPoint.fromLocalInstance(client, client.getLocalPlayer().getLocalLocation()).getRegionID();
+		return currentRegionId == YAMAS_DOMAIN_REGION_ID;
 	}
 }
