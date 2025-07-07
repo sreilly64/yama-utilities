@@ -56,7 +56,7 @@ public interface YamaUtilitiesConfig extends Config
 	}
 
 	@ConfigSection(
-			name = "Hide Scenery and Camera Effects",
+			name = "Hide Scenery and Effects",
 			description = "",
 			position = 2
 	)
