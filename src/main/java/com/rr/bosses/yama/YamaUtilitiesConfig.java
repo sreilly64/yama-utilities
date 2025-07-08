@@ -2,8 +2,6 @@ package com.rr.bosses.yama;
 
 import net.runelite.client.config.*;
 
-import java.awt.*;
-
 @ConfigGroup("yamautilities")
 public interface YamaUtilitiesConfig extends Config
 {
@@ -57,4 +55,34 @@ public interface YamaUtilitiesConfig extends Config
 		return Keybind.NOT_SET;
 	}
 
+	@ConfigSection(
+			name = "Hide Scenery and Effects",
+			description = "",
+			position = 2
+	)
+	String HIDE = "hide";
+
+	@ConfigItem(
+			keyName = "hideScenery",
+			name = "Hide Scenery",
+			description = "Hides scenery within Yama's Domain.",
+			section = HIDE,
+			position = 0
+	)
+	default SceneryFunction hideScenery()
+	{
+		return SceneryFunction.NONE;
+	}
+
+	@ConfigItem(
+			keyName = "hideFadeTransition",
+			name = "Hide Fade-out Transitions",
+			description = "Hide the camera fade-out transitions between Yama's phases.",
+			section = HIDE,
+			position = 1
+	)
+	default boolean hideFadeTransition() 
+	{
+		return false;
+	}
 }
