@@ -7,6 +7,7 @@ import net.runelite.api.*;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.*;
 import net.runelite.api.gameval.InterfaceID;
+import net.runelite.api.gameval.VarClientID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.chat.ChatColorType;
@@ -311,12 +312,12 @@ public class YamaUtilitiesPlugin extends Plugin {
 			updatePlayerCurrentLocation();
 		}
 
-		if (event.getIndex() != VarClientInt.INPUT_TYPE)
+		if (event.getIndex() != VarClientID.MESLAYERMODE)
 		{
 			return;
 		}
 
-		if (client.getVarcIntValue(VarClientInt.INPUT_TYPE) != 2 && client.getVarcIntValue(VarClientInt.INPUT_TYPE) != 8)
+		if (client.getVarcIntValue(VarClientID.MESLAYERMODE) != 2 && client.getVarcIntValue(VarClientID.MESLAYERMODE) != 8)
 		{
 			return;
 		}
