@@ -3,8 +3,8 @@ package com.rr.bosses.yama;
 import net.runelite.api.Client;
 import net.runelite.api.FontID;
 import net.runelite.api.KeyCode;
-import net.runelite.api.VarClientStr;
 import net.runelite.api.gameval.InterfaceID;
+import net.runelite.api.gameval.VarClientID;
 import net.runelite.api.widgets.*;
 
 import java.awt.event.KeyEvent;
@@ -174,7 +174,7 @@ public class DuoNameAutoFillWidget
         duoDisplayNameWidget.setAction(0, "Join");
         duoDisplayNameWidget.setOnOpListener((JavaScriptCallback) ev -> {
             Objects.requireNonNull(client.getWidget(InterfaceID.Chatbox.MES_TEXT2)).setText(displayName + "*");
-            client.setVarcStrValue(VarClientStr.INPUT_TEXT, displayName);
+            client.setVarcStrValue(VarClientID.MESLAYERINPUT, displayName);
         });
         Objects.requireNonNull(client.getWidget(InterfaceID.Chatbox.MES_TEXT2))
                 .setOnKeyListener((JavaScriptCallback) ev -> {
@@ -192,7 +192,7 @@ public class DuoNameAutoFillWidget
                     {
                         awtEv = keyCodeMap.getOrDefault(typedCode, -1);
                     }
-                    client.runScript(112, typedCode, typedChar, "");
+                    client.createScriptEventBuilder(112, typedCode, typedChar, "").build().setCanSendPackets(true).run();
 
                     // Numpad works using only keychars, can't really make it ignored from keybinds.
                     // This means that a VK_1 will map to VK_NUMPAD1.
@@ -201,11 +201,12 @@ public class DuoNameAutoFillWidget
                     if (awtEv == enterBind)
                     {
                         // Enter sends 84, rest unused.
-                        client.runScript(112, 84, 0, "");
+                        client.createScriptEventBuilder(112, 84, 0, "").build().setCanSendPackets(true).run();
+
                     } else if (awtEv == fillBind)
                     {
                         Objects.requireNonNull(client.getWidget(InterfaceID.Chatbox.MES_TEXT2)).setText(displayName + "*");
-                        client.setVarcStrValue(VarClientStr.INPUT_TEXT, displayName);
+                        client.setVarcStrValue(VarClientID.MESLAYERINPUT, displayName);
                     }
                 });
     }
