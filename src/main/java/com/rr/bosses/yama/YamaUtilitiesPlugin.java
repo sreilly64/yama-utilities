@@ -17,6 +17,7 @@ import net.runelite.client.chat.QueuedMessage;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
+import net.runelite.client.input.KeyManager;
 import net.runelite.client.party.PartyMember;
 import net.runelite.client.party.PartyService;
 import net.runelite.client.party.WSClient;
@@ -95,6 +96,12 @@ public class YamaUtilitiesPlugin extends Plugin {
 	@Inject
 	private PartyService partyService;
 
+	@Inject
+	private KeyManager keyManager;
+
+	@Inject
+	private DuoNameAutoFillHotkeyListener hotkeyListener;
+
 	public YamaUtilitiesPlugin()
 	{
 		this.partyPluginDuoInfo = new PartyPluginDuoInfo(false);
@@ -106,6 +113,7 @@ public class YamaUtilitiesPlugin extends Plugin {
 		this.partyPluginDuoInfo.resetFields();
 		updatePlayerCurrentLocation();
 		wsClient.registerMessage(PartyPluginDuoInfo.class);
+		keyManager.registerKeyListener(this.hotkeyListener);
 	}
 
 	@Override
@@ -118,6 +126,7 @@ public class YamaUtilitiesPlugin extends Plugin {
 				client.setGameState(GameState.LOADING);
 			}
 		});
+		keyManager.unregisterKeyListener(this.hotkeyListener);
 	}
 
 	@Provides
@@ -335,7 +344,7 @@ public class YamaUtilitiesPlugin extends Plugin {
 					log.debug("Creating duo widget.");
 					Widget mesLayerWidget = client.getWidget(InterfaceID.Chatbox.MES_LAYER);
 					duoNameAutoFillWidget = new DuoNameAutoFillWidget(mesLayerWidget, client);
-					duoNameAutoFillWidget.showWidget(duoDisplayName, config);
+					duoNameAutoFillWidget.showWidget(duoDisplayName);
 				}
 			}
 		});
@@ -366,7 +375,7 @@ public class YamaUtilitiesPlugin extends Plugin {
 		}
 	}
 
-	private String getDuoPartnerDisplayName()
+	public String getDuoPartnerDisplayName()
 	{
 		if (!partyService.isInParty())
 		{
