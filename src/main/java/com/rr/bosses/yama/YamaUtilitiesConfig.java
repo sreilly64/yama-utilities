@@ -43,18 +43,6 @@ public interface YamaUtilitiesConfig extends Config
 		return Keybind.NOT_SET;
 	}
 
-	@ConfigItem(
-			keyName = "enterKeybind",
-			name = "Enter Keybind",
-			description = "DOES NOT SUPPORT MODIFIERS",
-			section = AUTOFILL_SETTINGS,
-			position = 1
-	)
-	default Keybind enterKeybind()
-	{
-		return Keybind.NOT_SET;
-	}
-
 	@ConfigSection(
 			name = "Hide Scenery and Effects",
 			description = "",
