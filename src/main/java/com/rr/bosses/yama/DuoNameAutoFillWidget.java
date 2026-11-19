@@ -75,6 +75,5 @@ public class DuoNameAutoFillWidget
             Objects.requireNonNull(client.getWidget(InterfaceID.Chatbox.MES_TEXT2)).setText(displayName + "*");
             client.setVarcStrValue(VarClientID.MESLAYERINPUT, displayName);
         });
-
     }
 }
