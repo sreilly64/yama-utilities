@@ -43,6 +43,7 @@ public class DuoNameAutoFillHotkeyListener extends HotkeyListener
         {
             hotkeyPressed();
 
+            //only consume the pressed key when successfully autofilling the mes layer
             if (Keybind.getModifierForKeyCode(e.getKeyCode()) == null && displayNameAutofilled)
             {
                 displayNameAutofilled = false;
