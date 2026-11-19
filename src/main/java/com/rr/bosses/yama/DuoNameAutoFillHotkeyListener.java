@@ -5,9 +5,11 @@ import net.runelite.api.Client;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.gameval.VarClientID;
 import net.runelite.client.callback.ClientThread;
+import net.runelite.client.config.Keybind;
 import net.runelite.client.util.HotkeyListener;
 
 import javax.inject.Inject;
+import java.awt.event.KeyEvent;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -23,12 +25,32 @@ public class DuoNameAutoFillHotkeyListener extends HotkeyListener
     private ClientThread clientThread;
 
     private YamaUtilitiesPlugin plugin;
+    private YamaUtilitiesConfig config;
+    private boolean displayNameAutofilled = false;
 
     @Inject
     private DuoNameAutoFillHotkeyListener(YamaUtilitiesPlugin plugin, YamaUtilitiesConfig config)
     {
         super(config::autofillKeybind);
         this.plugin = plugin;
+        this.config = config;
+    }
+
+    @Override
+    public void keyPressed(KeyEvent e)
+    {
+        if (config.autofillKeybind().matches(e))
+        {
+            hotkeyPressed();
+
+            //only consume the pressed key when successfully autofilling the mes layer
+            if (Keybind.getModifierForKeyCode(e.getKeyCode()) == null && displayNameAutofilled)
+            {
+                displayNameAutofilled = false;
+                // Only consume non modifier keys
+                e.consume();
+            }
+        }
     }
 
     @Override
@@ -52,6 +74,8 @@ public class DuoNameAutoFillHotkeyListener extends HotkeyListener
         {
             return;
         }
+
+        displayNameAutofilled = true;
 
         Objects.requireNonNull(client.getWidget(InterfaceID.Chatbox.MES_TEXT2)).setText(displayName + "*");
         clientThread.invoke(() ->
